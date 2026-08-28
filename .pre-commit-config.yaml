@@ -1,0 +1,118 @@
+# Pre-commit hooks for JSAN People360.
+#
+# Install once per clone (with the backend virtual environment active):
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run against the whole repository:
+#   pre-commit run --all-files
+
+default_language_version:
+  python: python3.12
+
+exclude: '^(frontend/node_modules/|frontend/\.next/|backend/\.venv/)'
+
+repos:
+  # -------------------------------------------------------------------
+  # Universal hygiene
+  # -------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^frontend/tsconfig\.json$ # contains comments (JSONC)
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # -------------------------------------------------------------------
+  # Backend: format, sort imports, lint. The type-check is a local hook
+  # further down, because it needs the project's own dependencies.
+  # -------------------------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        files: ^backend/
+        args: [--config=backend/pyproject.toml]
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: ^backend/
+        args: [--settings-path=backend/pyproject.toml]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        files: ^backend/
+        args: [--fix, --config=backend/pyproject.toml]
+
+  - repo: local
+    hooks:
+      # -----------------------------------------------------------------
+      # Backend type-check.
+      #
+      # A local hook rather than mirrors-mypy: the configuration loads the
+      # pydantic plugin and the code is typed against SQLAlchemy 2, so the
+      # check is only meaningful in an environment that has the project's own
+      # dependencies installed. Run it with the backend virtual environment
+      # active, exactly as `scripts/verify.ps1` does.
+      # -----------------------------------------------------------------
+      - id: backend-mypy
+        name: backend typecheck (mypy)
+        entry: python -m mypy --config-file backend/pyproject.toml backend/app
+        language: system
+        pass_filenames: false
+        files: ^backend/.*\.py$
+
+      # -----------------------------------------------------------------
+      # Guard rail: the schema belongs to Alembic. A call to create_all()
+      # would let the database drift away from the migration history, so it
+      # is rejected at commit time rather than discovered in production.
+      # -----------------------------------------------------------------
+      - id: no-create-all
+        name: reject Base.metadata.create_all()
+        entry: 'metadata\.create_all'
+        language: pygrep
+        types: [python]
+        files: ^backend/
+        exclude: ^backend/tests/
+
+      # -----------------------------------------------------------------
+      # Frontend: type-check and lint.
+      #
+      # These run through the project's own npm scripts so that the hook and
+      # CI enforce exactly the same rules.
+      # -----------------------------------------------------------------
+      - id: frontend-typecheck
+        name: frontend typecheck (tsc)
+        entry: npm --prefix frontend run typecheck
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx)$
+
+      - id: frontend-lint
+        name: frontend lint (eslint)
+        entry: npm --prefix frontend run lint
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx)$
+
+      - id: frontend-format
+        name: frontend format check (prettier)
+        entry: npm --prefix frontend run format:check
+        language: system
+        pass_filenames: false
+        files: ^frontend/src/.*\.(ts|tsx|css|json|md)$

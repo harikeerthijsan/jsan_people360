@@ -1,0 +1,166 @@
+[project]
+name = "jsan-people360-backend"
+version = "0.1.0"
+description = "JSAN People360 -- enterprise HRMS platform API"
+requires-python = ">=3.12"
+readme = "../README.md"
+
+# Runtime dependencies are pinned in ../requirements.txt so that a single file
+# governs both local installs and CI.
+
+# ----------------------------------------------------------------------
+# Black
+# ----------------------------------------------------------------------
+[tool.black]
+line-length = 110
+target-version = ["py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | \.venv
+  | alembic/versions
+  | \.pytest-[^/]*
+)/
+'''
+
+# ----------------------------------------------------------------------
+# isort
+# ----------------------------------------------------------------------
+[tool.isort]
+# Must stay compatible with Ruff's own isort rules (`I001`), which run over the
+# same files. `force_sort_within_sections` is deliberately NOT set: it makes
+# isort order `from x import y` alongside `import x`, which Ruff then reverts,
+# leaving the two tools fighting on every commit.
+profile = "black"
+line_length = 110
+known_first_party = ["app", "tests"]
+# The `alembic/` directory next to `app/` makes isort guess that the installed
+# `alembic` package is also first-party. It is not.
+known_third_party = ["alembic"]
+# The same exclusions Black and Ruff apply. They have to match: a file that one
+# tool formats and another skips is a file the two rewrite in turn, and the
+# generated migrations are Alembic's to lay out, not ours.
+skip_glob = [".venv/*", "alembic/versions/*", ".pytest-*/*"]
+combine_as_imports = true
+
+# ----------------------------------------------------------------------
+# Ruff (linting only -- formatting belongs to Black)
+# ----------------------------------------------------------------------
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = [".venv", "alembic/versions", ".pytest-*"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "UP",   # pyupgrade
+    "S",    # bandit security checks
+    "ASYNC",# async correctness
+    "T20",  # no print statements
+    "SIM",  # simplification
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "B008",  # FastAPI's Depends() in defaults is the documented idiom
+    "S101",  # assert is expected in tests
+    # PEP 695 type-parameter syntax (`class Repo[T]`) is valid on 3.12+, but the
+    # explicit Generic[T] form is what SQLAlchemy's and Pydantic's own
+    # documentation uses, and it reads more clearly to most Python developers.
+    "UP046",
+    "UP047",
+]
+
+[tool.ruff.lint.isort]
+# Must mirror [tool.isort] above. Without `known-first-party`, Ruff classifies
+# `app` as a third-party package and reorders imports that isort has just
+# sorted, so the two tools undo each other on every run.
+known-first-party = ["app", "tests"]
+known-third-party = ["alembic"]
+combine-as-imports = true
+
+[tool.ruff.lint.per-file-ignores]
+# Note the `**`: a bare `tests/*` matches only direct children, silently leaving
+# tests/unit/ and tests/integration/ unignored.
+"tests/**/*.py" = ["S101", "S105", "S106"]  # asserts and test credentials
+"tests/integration/test_documents.py" = ["ASYNC240"]  # intentional tiny local filesystem assertions
+"app/cli/*.py" = ["T20"]                    # CLI scripts may print
+"alembic/env.py" = ["E402"]                 # sys.path bootstrap precedes imports
+"alembic/versions/*.py" = ["E501"]          # generated column definitions
+# Enum member names such as PASSWORD_CHANGED and TOKEN_REFRESHED trip the
+# hardcoded-password heuristic. They are audit action identifiers, not secrets.
+"app/models/audit_log.py" = ["S105"]
+
+# ----------------------------------------------------------------------
+# mypy
+# ----------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_reexport = false
+exclude = ["\\.venv", "alembic/versions"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "alembic.*"]
+disallow_untyped_defs = false
+
+# Report generation reaches for two libraries that ship no type information.
+# Narrow, per-module silence: everything we write against them is still checked,
+# and a new untyped dependency has to be added here deliberately rather than
+# slipping in under a global `ignore_missing_imports`.
+[[tool.mypy.overrides]]
+module = ["openpyxl.*", "reportlab.*"]
+ignore_missing_imports = true
+
+# ----------------------------------------------------------------------
+# pytest
+# ----------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# No `--basetemp` override. pytest wipes basetemp at the start of every run, so
+# pointing it inside the working tree makes a routine test run a recursive
+# delete of a project directory -- and when that delete fails (a locked file, a
+# stale handle, a tightened ACL) every test that asks for `tmp_path` errors in
+# setup rather than failing loudly. The default lives under the system temp
+# directory and rotates the last three runs, which is what we want.
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+# The default name, deliberately: `.gitignore` already carries `.pytest_cache/`,
+# and a hyphenated spelling silently stops matching it.
+cache_dir = ".pytest_cache"
+markers = [
+    "unit: fast tests with no I/O",
+    "integration: tests that exercise the database or HTTP layer",
+]
+filterwarnings = [
+    "error::DeprecationWarning:app.*",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/cli/*", "*/__init__.py"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

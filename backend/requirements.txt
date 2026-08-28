@@ -1,0 +1,3 @@
+# Backend dependencies are declared once at the repository root so that a single
+# `pip install -r requirements.txt` works from either location.
+-r ../requirements.txt

@@ -1,0 +1,22 @@
+# Keep the build context small and secrets out of the image.
+.git
+.github
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/coverage
+backups
+uploads
+docs
+memory.md
+*.md
+!frontend/README.md
+backend/tests
+scripts

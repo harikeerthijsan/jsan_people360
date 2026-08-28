@@ -1,0 +1,5 @@
+This directory holds user-uploaded files at runtime (avatars, documents).
+
+Its contents are git-ignored; this file exists only so the path is present on a
+fresh clone. In production, point UPLOAD_DIR at durable storage — a container
+filesystem is not a safe home for user data.

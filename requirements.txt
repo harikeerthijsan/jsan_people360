@@ -1,0 +1,53 @@
+# JSAN People360 -- backend Python dependencies (Python 3.12+)
+#
+# Install into a virtual environment:
+#   py -3.14 -m venv backend/.venv                        (Windows)
+#   backend\.venv\Scripts\Activate.ps1                    (Windows PowerShell)
+#   source backend/.venv/bin/activate                     (macOS / Linux)
+#   pip install -r requirements.txt
+#
+# Versions are pinned for reproducible installs. Bump deliberately, in a single
+# commit, with the test suite green.
+
+# ----- Web framework -------------------------------------------------
+fastapi==0.141.1
+uvicorn[standard]==0.52.0
+python-multipart==0.0.32
+
+# ----- Data / persistence --------------------------------------------
+sqlalchemy[asyncio]==2.0.51
+alembic==1.18.5
+asyncpg==0.31.0
+greenlet==3.5.4
+# Windows ships no IANA tz database. Alembic needs one to honour the
+# `timezone = UTC` setting in alembic.ini when generating a revision.
+tzdata==2026.3
+
+# ----- Validation / settings -----------------------------------------
+pydantic[email]==2.13.4
+pydantic-settings==2.14.2
+
+# ----- Security -------------------------------------------------------
+pyjwt==2.13.0
+bcrypt==5.0.0
+
+# ----- Runtime utilities ---------------------------------------------
+anyio==4.14.2
+httpx==0.28.1
+# Employee exports. CSV is written with the standard library; .xlsx is a zipped
+# XML package that is not worth hand-rolling.
+openpyxl==3.1.5
+reportlab==4.4.3
+
+# ----- Testing --------------------------------------------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+aiosqlite==0.22.1
+
+# ----- Code quality ---------------------------------------------------
+black==26.5.1
+isort==8.0.1
+ruff==0.16.1
+mypy==2.3.0
+pre-commit==4.6.1
