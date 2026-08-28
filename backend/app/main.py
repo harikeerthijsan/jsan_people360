@@ -142,13 +142,19 @@ def create_application() -> FastAPI:
 
     register_exception_handlers(app)
 
-    app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    @app.get("/", tags=["Health"])
+    async def root():
+        """Root endpoint providing API information."""
+        return {
+            "app": settings.APP_NAME,
+            "version": settings.APP_VERSION,
+            "environment": settings.APP_ENV,
+            "docs": "/docs",
+            "api": "/api/v1",
+            "health": "/api/v1/health",
+        }
 
-    @app.get("/", include_in_schema=False)
-    async def root() -> RedirectResponse:
-        """Send humans to the docs, or to the health probe when docs are off."""
-        target = "/docs" if settings.docs_enabled else f"{settings.API_V1_PREFIX}/health"
-        return RedirectResponse(url=target)
+    app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
     return app
 
