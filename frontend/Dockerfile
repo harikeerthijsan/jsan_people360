@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # JSAN People360 -- web client image (Next.js, standalone output).
 #
-# Build context is the REPOSITORY ROOT:
+# Build context can be either the REPOSITORY ROOT or the `frontend`
+# directory itself (e.g. Railway's `rootDirectory: frontend` setting):
 #   docker build -f frontend/Dockerfile \
 #     --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1 \
 #     --build-arg NEXT_PUBLIC_APP_ENV=production -t people360-web .
@@ -12,7 +13,7 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 FROM node:22-alpine AS build
@@ -25,7 +26,7 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV \
     NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
-COPY frontend/ ./
+COPY . ./
 RUN npm run build
 
 FROM node:22-alpine AS runner
